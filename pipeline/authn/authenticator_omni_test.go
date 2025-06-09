@@ -281,9 +281,7 @@ func TestAuthenticatorOmni(t *testing.T) {
 	})
 
 	t.Run("method=authenticate-with-cache", func(t *testing.T) {
-		conf.SetForTest(t, "authenticators.omni.config.cache.enabled", true)
-		conf.SetForTest(t, "authenticators.omni.config.cache.ttl", "1s")
-
+		// Note: We need to enable cache in the JSON config, not just in the global config
 		var handlerWasCalled bool
 		assertHandlerWasCalled := func(t *testing.T) {
 			assert.True(t, handlerWasCalled, "expected the handler to have been called")
@@ -337,7 +335,12 @@ func TestAuthenticatorOmni(t *testing.T) {
 			expected := new(AuthenticationSession)
 
 			t.Run("case=initial request succeeds and caches", func(t *testing.T) {
-				config := setup(t, `{"cache": {"enabled": true, "ttl": "1s"}}`)
+				// FIX: Include cache configuration in the JSON config
+				config := setup(t, `{
+					"kratos": {"check_session_url": "placeholder"},
+					"hydra": {"introspection_url": "placeholder"},
+					"cache": {"enabled": true, "ttl": "1s"}
+				}`)
 
 				err = a.Authenticate(r, expected, config, nil)
 				require.NoError(t, err)
@@ -345,7 +348,12 @@ func TestAuthenticatorOmni(t *testing.T) {
 			})
 
 			t.Run("case=second request uses cache", func(t *testing.T) {
-				config := setup(t, `{"cache": {"enabled": true, "ttl": "1s"}}`)
+				// FIX: Include cache configuration in the JSON config
+				config := setup(t, `{
+					"kratos": {"check_session_url": "placeholder"},
+					"hydra": {"introspection_url": "placeholder"},
+					"cache": {"enabled": true, "ttl": "1s"}
+				}`)
 				sess := new(AuthenticationSession)
 
 				err = a.Authenticate(r, sess, config, nil)
@@ -355,7 +363,12 @@ func TestAuthenticatorOmni(t *testing.T) {
 			})
 
 			t.Run("case=cache expires after TTL", func(t *testing.T) {
-				config := setup(t, `{"cache": {"enabled": true, "ttl": "100ms"}}`)
+				// FIX: Include cache configuration in the JSON config
+				config := setup(t, `{
+					"kratos": {"check_session_url": "placeholder"},
+					"hydra": {"introspection_url": "placeholder"},
+					"cache": {"enabled": true, "ttl": "100ms"}
+				}`)
 
 				require.NoError(t, a.Authenticate(r, expected, config, nil))
 				assertHandlerWasCalled(t)
@@ -373,7 +386,12 @@ func TestAuthenticatorOmni(t *testing.T) {
 			expected := new(AuthenticationSession)
 
 			t.Run("case=initial request succeeds and caches", func(t *testing.T) {
-				config := setup(t, `{"cache": {"enabled": true, "ttl": "1s"}}`)
+				// FIX: Include cache configuration in the JSON config
+				config := setup(t, `{
+					"kratos": {"check_session_url": "placeholder"},
+					"hydra": {"introspection_url": "placeholder"},
+					"cache": {"enabled": true, "ttl": "1s"}
+				}`)
 
 				err = a.Authenticate(r, expected, config, nil)
 				require.NoError(t, err)
@@ -381,7 +399,12 @@ func TestAuthenticatorOmni(t *testing.T) {
 			})
 
 			t.Run("case=second request uses cache", func(t *testing.T) {
-				config := setup(t, `{"cache": {"enabled": true, "ttl": "1s"}}`)
+				// FIX: Include cache configuration in the JSON config
+				config := setup(t, `{
+					"kratos": {"check_session_url": "placeholder"},
+					"hydra": {"introspection_url": "placeholder"},
+					"cache": {"enabled": true, "ttl": "1s"}
+				}`)
 				sess := new(AuthenticationSession)
 
 				err = a.Authenticate(r, sess, config, nil)

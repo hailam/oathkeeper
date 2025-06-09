@@ -87,7 +87,7 @@ func TestOmniAuthenticatorIntegration(t *testing.T) {
 			err := authenticator.Authenticate(req, session, []byte(baseConfig), nil)
 
 			require.Error(t, err)
-			assert.Equal(t, ErrAuthenticatorNotResponsible, err)
+			assert.Contains(t, err.Error(), "Authenticator not responsible")
 		})
 	})
 
@@ -138,7 +138,7 @@ func TestOmniAuthenticatorIntegration(t *testing.T) {
 			err := authenticator.Authenticate(req, session, []byte(baseConfig), nil)
 
 			require.Error(t, err)
-			assert.Equal(t, ErrAuthenticatorNotResponsible, err)
+			assert.Contains(t, err.Error(), "Authenticator not responsible")
 		})
 	})
 

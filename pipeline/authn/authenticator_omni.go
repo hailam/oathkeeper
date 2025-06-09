@@ -27,43 +27,6 @@ import (
 	"github.com/ory/x/stringslice"
 )
 
-/**
-NOT TO BE MERGED WITH THE OATHKEEPER CODEBASE.
-This is a very custom authenticator that implements an "omni" auth logic for a project.
-
- - check if there is an ory Kratos session cookie
- 	- if there is, validate it with Kratos' /sessions/whoami endpoint
-	- if the cookie is valid, check if the user identity schema is for backoffice or normal user
-		- if it is a backoffice user, check if the rule allows backoffice users
-		- if it is a normal user, check if the rule allows normal users
-		- depending on configuration, send session data to the next handler
- - if there is no session cookie, check for a bearer token in the Authorization header
- 	- if a token is found and starts with ory_st
-		- call Kratos' /sessions/whoami endpoint to validate the token
-		- if the token is valid, check if user identity schema is for backoffice or normal user
-			- if it is a backoffice user, check if the rule allows backoffice users
-			- if it is a normal user, check if the rule allows normal users
-			- depending on configuration, send session data to the next handler
-	- if token starts with ory_at
-		- call Hydra's /oauth2/introspect endpoint to validate the token
-		- if the token is valid, and aud has machines or psp
-			- send session data to the next handler
-		- if the token is valid, and does not have machines or psp
-			- check if subject is a kratos user
-			- if it is, check if the identity schema is for backoffice or normal user
-			- depending on configuration, send session data to the next handler
-			- configuration tells us if a certain type of user is to be allowed or not
-
-basically, this authenticator checks for a Kratos session cookie first,
-if it exists and is valid, it checks the user identity schema to determine if the user is a backoffice or normal user.
-If the session cookie is not present or invalid, it checks for a bearer token in the Authorization header.
-If a token is found, it validates the token with Kratos or Hydra, and checks the user identity schema to determine if the user is a backoffice or normal user.
-
-We should cache the results of the Kratos and Hydra calls to avoid hitting those services too often.
-We should also cache the overall result by a combination of the request URL, method, and headers,
-so that we can quickly return the session data without hitting Kratos or Hydra again.
-*/
-
 // Configuration structures following Oathkeeper patterns
 type AuthenticatorOmniConfiguration struct {
 	Kratos KratosConfig    `json:"kratos"`
@@ -149,6 +112,7 @@ type AuthenticatorOmni struct {
 	mu        sync.RWMutex
 
 	tokenCache *ristretto.Cache[string, []byte]
+	cacheMu    sync.RWMutex
 	cacheTTL   *time.Duration
 	logger     *logrusx.Logger
 	provider   trace.TracerProvider
@@ -202,6 +166,14 @@ func (a *AuthenticatorOmni) Config(config json.RawMessage) (*AuthenticatorOmniCo
 	if c.Retry.MaxDelay == "" {
 		c.Retry.MaxDelay = "100ms"
 	}
+	if c.Cache.TTL == "" {
+		c.Cache.TTL = "300s"
+	}
+	if c.Cache.MaxCost == 0 {
+		c.Cache.MaxCost = 100000000
+	}
+
+	//c.Cache.Enabled = true
 
 	// Validate required configuration
 	if c.Kratos.CheckSessionURL == "" {
@@ -299,6 +271,34 @@ func (a *AuthenticatorOmni) Config(config json.RawMessage) (*AuthenticatorOmniCo
 		a.tokenCache = cache
 	}
 
+	// Configure cache - FIX: Initialize cache per-configuration if enabled
+	if c.Cache.Enabled {
+		a.cacheMu.Lock()
+		if a.tokenCache == nil {
+			maxCost := c.Cache.MaxCost
+			if maxCost == 0 {
+				maxCost = 100000000
+			}
+
+			a.logger.Debugf("Creating cache with max cost: %d", maxCost)
+			cache, err := ristretto.NewCache(&ristretto.Config[string, []byte]{
+				NumCounters: maxCost * 10,
+				MaxCost:     maxCost,
+				BufferItems: 64,
+				Cost: func(value []byte) int64 {
+					return 1
+				},
+				IgnoreInternalCost: true,
+			})
+			if err != nil {
+				a.cacheMu.Unlock()
+				return nil, nil, err
+			}
+			a.tokenCache = cache
+		}
+		a.cacheMu.Unlock()
+	}
+
 	return &c, client, nil
 }
 
@@ -318,15 +318,20 @@ func (a *AuthenticatorOmni) Authenticate(r *http.Request, session *Authenticatio
 		a.logger.Debug("Found Kratos session cookie, validating...")
 
 		cacheKey := a.generateCacheKey("cookie", sessionCookie.Value, cfg)
-		if cached := a.getFromCache(cacheKey); cached != nil {
-			a.logger.Debug("Using cached session data for cookie")
-			*session = *cached
-			return nil
+
+		if cfg.Cache.Enabled {
+			if cached := a.getFromCache(cacheKey); cached != nil {
+				a.logger.Debug("Using cached session data for cookie")
+				*session = *cached
+				return nil
+			}
 		}
 
 		if kratosSession, err := a.validateKratosSession(client, cfg, sessionCookie.Value, false); err == nil {
 			if err := a.populateSessionFromKratos(session, kratosSession, "kratos_cookie"); err == nil {
-				a.setCache(cacheKey, session, cfg)
+				if cfg.Cache.Enabled {
+					a.setCache(cacheKey, session, cfg)
+				}
 				return nil
 			}
 		}
@@ -344,10 +349,13 @@ func (a *AuthenticatorOmni) Authenticate(r *http.Request, session *Authenticatio
 	token = strings.TrimPrefix(token, "bearer ")
 
 	cacheKey := a.generateCacheKey("token", token, cfg)
-	if cached := a.getFromCache(cacheKey); cached != nil {
-		a.logger.Debug("Using cached session data for token")
-		*session = *cached
-		return nil
+
+	if cfg.Cache.Enabled {
+		if cached := a.getFromCache(cacheKey); cached != nil {
+			a.logger.Debug("Using cached session data for token")
+			*session = *cached
+			return nil
+		}
 	}
 
 	// Handle Kratos session tokens (ory_st prefix)
@@ -364,7 +372,9 @@ func (a *AuthenticatorOmni) Authenticate(r *http.Request, session *Authenticatio
 			return err
 		}
 
-		a.setCache(cacheKey, session, cfg)
+		if cfg.Cache.Enabled {
+			a.setCache(cacheKey, session, cfg)
+		}
 		return nil
 	}
 
@@ -382,7 +392,9 @@ func (a *AuthenticatorOmni) Authenticate(r *http.Request, session *Authenticatio
 			return err
 		}
 
-		a.setCache(cacheKey, session, cfg)
+		if cfg.Cache.Enabled {
+			a.setCache(cacheKey, session, cfg)
+		}
 		return nil
 	}
 
