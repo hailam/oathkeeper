@@ -914,6 +914,140 @@
       "required": ["introspection_url"],
       "additionalProperties": false
     },
+    "configAuthenticatorsOmni": {
+      "type": "object",
+      "title": "Omni Authenticator Configuration",
+      "description": "This section is optional when the authenticator is disabled.",
+      "required": ["kratos_url", "hydra_url"],
+      "additionalProperties": false,
+      "properties": {
+        "kratos_url": {
+          "title": "Kratos API URL",
+          "description": "Base URL for the ORY Kratos API.",
+          "type": "string",
+          "format": "uri"
+        },
+        "session_cookie": {
+          "title": "Session Cookie Name",
+          "description": "The name of the session cookie to check for.",
+          "type": "string",
+          "default": "ory_kratos_session"
+        },
+        "hydra_url": {
+          "title": "Hydra API URL",
+          "description": "Base URL for the ORY Hydra API.",
+          "type": "string",
+          "format": "uri"
+        },
+        "hydra_client_id": {
+          "title": "Hydra Client ID",
+          "description": "Client ID to use for introspecting tokens with ORY Hydra.",
+          "type": "string"
+        },
+        "hydra_client_secret": {
+          "title": "Hydra Client Secret",
+          "description": "Client secret to use for introspecting tokens with ORY Hydra.",
+          "type": "string"
+        },
+        "allow_backoffice": {
+          "title": "Allow Backoffice Users",
+          "description": "Specifies if users with a 'backoffice' schema are allowed.",
+          "type": "boolean",
+          "default": false
+        },
+        "allow_normal": {
+          "title": "Allow Normal Users",
+          "description": "Specifies if users with a 'normal' schema are allowed.",
+          "type": "boolean",
+          "default": false
+        },
+        "allow_machines": {
+          "title": "Allow Machine Tokens",
+          "description": "Specifies if machine tokens (e.g., from client credentials grants) are allowed.",
+          "type": "boolean",
+          "default": false
+        },
+        "allow_psp": {
+          "title": "Allow PSP Tokens",
+          "description": "Specifies if PSP tokens are allowed.",
+          "type": "boolean",
+          "default": false
+        },
+        "backoffice_schemas": {
+          "title": "Backoffice Schemas",
+          "description": "A list of Kratos identity schema IDs that are considered 'backoffice' users.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "normal_schemas": {
+          "title": "Normal Schemas",
+          "description": "A list of Kratos identity schema IDs that are considered 'normal' users.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "session_token_prefix": {
+          "title": "Session Token Prefix",
+          "description": "The prefix for ORY Kratos session tokens.",
+          "type": "string",
+          "default": "ory_st"
+        },
+        "access_token_prefix": {
+          "title": "Access Token Prefix",
+          "description": "The prefix for ORY Hydra access tokens.",
+          "type": "string",
+          "default": "ory_at"
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_delay": {
+              "type": "string",
+              "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
+              "default": "1s"
+            },
+            "give_up_after": {
+              "type": "string",
+              "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
+              "default": "2s"
+            }
+          }
+        },
+        "cache": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "ttl": {
+              "type": "string",
+              "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
+              "title": "Cache Time To Live",
+              "description": "Specifies a set time to live for the token in the cache.",
+              "examples": ["5s", "1m"]
+            },
+            "max_tokens": {
+              "type": "integer",
+              "default": 1000,
+              "title": "Maximum Cached Tokens",
+              "description": "The maximum number of tokens to cache."
+            }
+          }
+        },
+        "forward_session_data": {
+          "title": "Forward Session Data",
+          "description": "Specifies whether to forward session data to the next handler.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
     "configAuthorizersKetoEngineAcpOry": {
       "type": "object",
       "title": "ORY Keto Access Control Policy Authorizer Configuration",
@@ -1477,6 +1611,36 @@
                 },
                 "config": {
                   "$ref": "#/definitions/configAuthenticatorsOauth2Introspection"
+                }
+              },
+              "required": ["config"]
+            },
+            {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            }
+          ]
+        },
+        "omni": {
+          "title": "OAuth 2.0 Client Credentials",
+          "description": "The [`omni` authenticator]. Custom for kdk",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "$ref": "#/definitions/handlerSwitch"
+            }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "enabled": {
+                  "const": true
+                },
+                "config": {
+                  "$ref": "#/definitions/configAuthenticatorsOmni"
                 }
               },
               "required": ["config"]
