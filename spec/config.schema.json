@@ -915,138 +915,155 @@
       "additionalProperties": false
     },
     "configAuthenticatorsOmni": {
+      "title": "Omni Authenticator",
+      "description": "The omni authenticator that handles both Kratos sessions and Hydra OAuth2 tokens",
       "type": "object",
-      "title": "Omni Authenticator Configuration",
-      "description": "This section is optional when the authenticator is disabled.",
-      "required": ["kratos_url", "hydra_url"],
-      "additionalProperties": false,
       "properties": {
-        "kratos_url": {
-          "title": "Kratos API URL",
-          "description": "Base URL for the ORY Kratos API.",
-          "type": "string",
-          "format": "uri"
-        },
-        "session_cookie": {
-          "title": "Session Cookie Name",
-          "description": "The name of the session cookie to check for.",
-          "type": "string",
-          "default": "ory_kratos_session"
-        },
-        "hydra_url": {
-          "title": "Hydra API URL",
-          "description": "Base URL for the ORY Hydra API.",
-          "type": "string",
-          "format": "uri"
-        },
-        "hydra_client_id": {
-          "title": "Hydra Client ID",
-          "description": "Client ID to use for introspecting tokens with ORY Hydra.",
-          "type": "string"
-        },
-        "hydra_client_secret": {
-          "title": "Hydra Client Secret",
-          "description": "Client secret to use for introspecting tokens with ORY Hydra.",
-          "type": "string"
-        },
-        "allow_backoffice": {
-          "title": "Allow Backoffice Users",
-          "description": "Specifies if users with a 'backoffice' schema are allowed.",
-          "type": "boolean",
-          "default": false
-        },
-        "allow_normal": {
-          "title": "Allow Normal Users",
-          "description": "Specifies if users with a 'normal' schema are allowed.",
-          "type": "boolean",
-          "default": false
-        },
-        "allow_machines": {
-          "title": "Allow Machine Tokens",
-          "description": "Specifies if machine tokens (e.g., from client credentials grants) are allowed.",
-          "type": "boolean",
-          "default": false
-        },
-        "allow_psp": {
-          "title": "Allow PSP Tokens",
-          "description": "Specifies if PSP tokens are allowed.",
-          "type": "boolean",
-          "default": false
-        },
-        "backoffice_schemas": {
-          "title": "Backoffice Schemas",
-          "description": "A list of Kratos identity schema IDs that are considered 'backoffice' users.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "normal_schemas": {
-          "title": "Normal Schemas",
-          "description": "A list of Kratos identity schema IDs that are considered 'normal' users.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "session_token_prefix": {
-          "title": "Session Token Prefix",
-          "description": "The prefix for ORY Kratos session tokens.",
-          "type": "string",
-          "default": "ory_st"
-        },
-        "access_token_prefix": {
-          "title": "Access Token Prefix",
-          "description": "The prefix for ORY Hydra access tokens.",
-          "type": "string",
-          "default": "ory_at"
-        },
-        "retry": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "max_delay": {
-              "type": "string",
-              "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
-              "default": "1s"
-            },
-            "give_up_after": {
-              "type": "string",
-              "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
-              "default": "2s"
-            }
-          }
-        },
-        "cache": {
-          "type": "object",
-          "additionalProperties": false,
+        "enabled": {
+          "$ref": "#/definitions/handlerSwitch"
+        }
+      },
+      "oneOf": [
+        {
           "properties": {
             "enabled": {
-              "type": "boolean",
-              "default": false
+              "const": true
             },
-            "ttl": {
-              "type": "string",
-              "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
-              "title": "Cache Time To Live",
-              "description": "Specifies a set time to live for the token in the cache.",
-              "examples": ["5s", "1m"]
-            },
-            "max_tokens": {
-              "type": "integer",
-              "default": 1000,
-              "title": "Maximum Cached Tokens",
-              "description": "The maximum number of tokens to cache."
+            "config": {
+              "type": "object",
+              "title": "Omni Authenticator Configuration",
+              "additionalProperties": false,
+              "required": ["kratos", "hydra"],
+              "properties": {
+                "kratos": {
+                  "type": "object",
+                  "title": "Kratos Configuration",
+                  "additionalProperties": false,
+                  "required": ["check_session_url"],
+                  "properties": {
+                    "check_session_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "title": "Kratos Session Check URL",
+                      "description": "The URL to validate Kratos sessions",
+                      "examples": ["http://kratos:4433/sessions/whoami"]
+                    },
+                    "session_cookie": {
+                      "type": "string",
+                      "title": "Session Cookie Name",
+                      "default": "ory_kratos_session"
+                    },
+                    "preserve_path": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "preserve_query": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "preserve_host": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "extra_from": {
+                      "type": "string",
+                      "default": "@this"
+                    },
+                    "subject_from": {
+                      "type": "string",
+                      "default": "identity.id"
+                    }
+                  }
+                },
+                "hydra": {
+                  "type": "object",
+                  "title": "Hydra Configuration",
+                  "additionalProperties": false,
+                  "required": ["introspection_url"],
+                  "properties": {
+                    "introspection_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "title": "OAuth 2.0 Introspection URL",
+                      "examples": ["http://hydra:4445/oauth2/introspect"]
+                    },
+                    "scope_strategy": {
+                      "$ref": "#/definitions/scopeStrategy"
+                    },
+                    "required_scope": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "target_audience": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "trusted_issuers": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "pre_authorization": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {"type": "boolean"},
+                        "client_id": {"type": "string"},
+                        "client_secret": {"type": "string"},
+                        "token_url": {"type": "string", "format": "uri"},
+                        "audience": {"type": "string"},
+                        "scope": {
+                          "type": "array",
+                          "items": {"type": "string"}
+                        }
+                      },
+                      "oneOf": [
+                        {
+                          "properties": {
+                            "enabled": {"const": false}
+                          }
+                        },
+                        {
+                          "required": ["client_id", "client_secret", "token_url"],
+                          "properties": {
+                            "enabled": {"const": true}
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "cache": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "$ref": "#/definitions/handlerSwitch"
+                    },
+                    "ttl": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
+                      "default": "300s"
+                    },
+                    "max_cost": {
+                      "type": "integer",
+                      "default": 100000000
+                    }
+                  }
+                },
+                "retry": {
+                  "$ref": "#/definitions/retry"
+                }
+              }
+            }
+          },
+          "required": ["config"]
+        },
+        {
+          "properties": {
+            "enabled": {
+              "const": false
             }
           }
-        },
-        "forward_session_data": {
-          "title": "Forward Session Data",
-          "description": "Specifies whether to forward session data to the next handler.",
-          "type": "boolean",
-          "default": false
         }
-      }
+      ]
     },
     "configAuthorizersKetoEngineAcpOry": {
       "type": "object",
