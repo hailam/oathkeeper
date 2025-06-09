@@ -366,7 +366,7 @@ func (r *RegistryMemory) prepareAuthn() {
 			authn.NewAuthenticatorUnauthorized(r.c),
 
 			// our custom omni authenticator
-			authn.NewAuthenticatorOmni(r.c),
+			authn.NewAuthenticatorOmni(r.c, r.Logger(), r.trc.Provider()),
 		}
 
 		r.authenticators = map[string]authn.Authenticator{}

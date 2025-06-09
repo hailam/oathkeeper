@@ -53,16 +53,8 @@ import (
 	"github.com/ory/x/httpx"
 	"github.com/ory/x/logrusx"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
-
-type AuthenticatorOmni struct {
-	c      configuration.Provider
-	client *http.Client
-
-	tokenCache *ristretto.Cache[string, []byte]
-	cacheTTL   *time.Duration
-	logger     *logrusx.Logger
-}
 
 type omniCacheConfig struct {
 	Enabled   bool   `json:"enabled"`
@@ -136,11 +128,22 @@ type HydraIntrospectionResponse struct {
 	Scope     string   `json:"scope"`
 }
 
+type AuthenticatorOmni struct {
+	c      configuration.Provider
+	client *http.Client
+
+	tokenCache *ristretto.Cache[string, []byte]
+	cacheTTL   *time.Duration
+	logger     *logrusx.Logger
+	provider   trace.TracerProvider
+}
+
 // NewAuthenticatorOmni creates a new instance of your authenticator.
-func NewAuthenticatorOmni(c configuration.Provider, logger *logrusx.Logger) *AuthenticatorOmni {
+func NewAuthenticatorOmni(c configuration.Provider, logger *logrusx.Logger, p trace.TracerProvider) *AuthenticatorOmni {
 	return &AuthenticatorOmni{
-		c:      c,
-		logger: logger,
+		c:        c,
+		logger:   logger,
+		provider: p,
 	}
 }
 
